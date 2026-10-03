@@ -1,5 +1,5 @@
 import { locale } from '../i18n';
-import type { Category, Order, PayMethod, Product } from './types';
+import type { Category, Expense, Order, PayMethod, Product } from './types';
 
 export interface RangeKey {
   from: number;
@@ -128,3 +128,19 @@ export function buildReport(orders: Order[], products: Product[], categories: Ca
     byMethod: [...methods.entries()].map(([method, amount]) => ({ method, amount })).filter((m) => m.amount !== 0).sort((a, b) => b.amount - a.amount),
   };
 }
+
+// ---------- costs the shop added, for the "net profit" option ----------
+
+export const totalCosts = (costs: Pick<Expense, 'amount'>[]): number => costs.reduce((a, c) => a + c.amount, 0);
+
+/** Net profit from the costs added: sales without tax (after refunds), minus those costs. */
+export const netProfitFrom = (r: Pick<Report, 'net' | 'tax'>, costs: number): number => r.net - r.tax - costs;
+
+const pad2 = (n: number) => String(n).padStart(2, '0');
+/** A day as an `<input type="date">` reads it (local time). */
+export const dayInput = (ts: number): string => {
+  const d = new Date(ts);
+  return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
+};
+/** The timestamp a cost on that day is stored with: local noon, so it stays inside that day whatever the timezone. */
+export const costTime = (day: string): number => new Date(`${day}T12:00:00`).getTime();

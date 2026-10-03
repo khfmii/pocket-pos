@@ -8,6 +8,7 @@ import { loadSampleData } from './demo';
 import { localName, receiptItemName, type ItemName } from './names';
 import { depositSlip } from './receipt';
 import { decimalsFor, formatMoney } from './money';
+import { costTime, dayInput } from './report';
 import { recipeCost } from './recipe';
 import type {
   Adjustment,
@@ -17,6 +18,7 @@ import type {
   CashMovement,
   Category,
   Customer,
+  Expense,
   Ingredient,
   Order,
   Parked,
@@ -448,6 +450,18 @@ export async function deleteCustomer(id: string) {
   customers.value = customers.value.filter((c) => c.id !== id);
   if (cart.value.customerId === id) cart.value = { ...cart.value, customerId: '' };
 }
+
+// ---------- costs (ingredient purchases and other expenses) ----------
+
+/** A new cost dated `day` (today by default). */
+export const blankExpense = (ts = Date.now()): Expense => ({ id: uid(), updatedAt: 0, at: costTime(dayInput(ts)), amount: 0, label: '', kind: 'ingredients' });
+
+export async function saveExpense(e: Expense): Promise<Expense> {
+  if (!(e.amount > 0)) throw new Error(t('Enter an amount.'));
+  return put('expenses', { ...e, label: e.label.trim() });
+}
+
+export const deleteExpense = (id: string) => remove('expenses', id);
 
 // ---------- cart ----------
 

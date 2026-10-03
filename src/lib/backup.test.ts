@@ -2,6 +2,7 @@ import 'fake-indexeddb/auto';
 import { beforeEach, describe, expect, it } from 'vitest';
 import {
   autoSnapshotIfDue,
+  BACKUP_SCHEMA,
   BackupError,
   createBackup,
   createSnapshot,
@@ -224,14 +225,36 @@ describe('older backups and payment proofs', () => {
     await put('orders', order('keep', 5));
     await (await db()).put('attachments', att('a1', 'keep'));
     const b = await decodeBackup(await v1File());
-    expect(b.schema).toBe(2);
+    expect(b.schema).toBe(BACKUP_SCHEMA); // upgraded step by step: v1 → v2 → v3
     expect(b.data.ingredients).toEqual([]);
+    expect(b.data.expenses).toEqual([]);
     expect(b.attachmentsIncluded).toBe(false);
 
     await restoreBackup(b, 'replace', { safetySnapshot: false });
     expect((await getAll('orders')).map((o) => o.id)).toEqual(['o1']);
     // the order the photo belonged to is gone, so the photo is cleaned up rather than left orphaned
     expect(await getAll('attachments')).toHaveLength(0);
+  });
+
+  it('restores a schema-2 file (no costs yet) and a current backup keeps its costs', async () => {
+    const cost = { id: 'e1', updatedAt: 5, at: 1_700_000_000_000, amount: 1200, label: 'Flour', kind: 'ingredients' as const };
+    await put('expenses', cost);
+    const current = await createBackup();
+    expect(current.schema).toBe(BACKUP_SCHEMA);
+    expect(current.data.expenses.map((e) => e.id)).toEqual(['e1']);
+    expect(current.counts.expenses).toBe(1);
+
+    // What a v2 app wrote: the same file without the costs store.
+    const { expenses: _gone, ...data } = current.data;
+    const v2 = JSON.stringify({ ...current, schema: 2, counts: {}, checksum: await sha256Hex(JSON.stringify(data)), data });
+    const b = await decodeBackup(v2);
+    expect(b.schema).toBe(BACKUP_SCHEMA);
+    expect(b.data.expenses).toEqual([]);
+    await restoreBackup(b, 'replace', { safetySnapshot: false });
+    expect(await getAll('expenses')).toHaveLength(0); // replace makes the device match the file, which had none
+
+    await restoreBackup(current, 'replace', { safetySnapshot: false });
+    expect((await getAll('expenses')).map((e) => e.label)).toEqual(['Flour']);
   });
 
   it('keeps photos whose sale survives a backup that left photos out', async () => {

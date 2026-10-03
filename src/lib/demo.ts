@@ -3,6 +3,7 @@ import { computeCart, toOrderLines } from './cart';
 import { uid } from './crypto';
 import { put, getAll } from './db';
 import { recipeCost } from './recipe';
+import { costTime, dayInput } from './report';
 import type { CartLine, Customer, Ingredient, Order, Product, Settings } from './types';
 
 const CATS = [
@@ -91,6 +92,11 @@ export async function loadSampleData() {
   const rnd = mulberry(42);
   const now = Date.now();
   for (let day = 13; day >= 0; day--) {
+    // What the shop bought that day, so the "costs added" net-profit option has something to show.
+    const when = costTime(dayInput(now - day * 86_400_000));
+    for (const [ing, packs, every] of [[milk, 2, 1], [beans, 1, 3], [cups, 1, 4]] as const)
+      if (day % every === 0)
+        await put('expenses', { id: uid(), updatedAt: 0, at: when, amount: ing.packCost * packs, label: ing.name, kind: 'ingredients', ingredientId: ing.id, packs });
     const n = 6 + Math.floor(rnd() * 9);
     for (let k = 0; k < n; k++) {
       const at = new Date(now - day * 86_400_000);

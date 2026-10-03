@@ -370,7 +370,7 @@ export function RestoreFlow({
   const [mode, setMode] = useState<RestoreMode>('replace');
   const [clearPins, setClearPins] = useState(false);
   const [result, setResult] = useState<RestoreResult | null>(null);
-  const [current, setCurrent] = useState({ orders: 0, products: 0, customers: 0, proofs: 0 });
+  const [current, setCurrent] = useState({ orders: 0, products: 0, customers: 0, proofs: 0, costs: 0 });
   const encrypted = isEncryptedBackup(text);
 
   async function decode(pw?: string) {
@@ -390,7 +390,7 @@ export function RestoreFlow({
     if (!encrypted) decode();
     (async () => {
       const d = await db();
-      setCurrent({ orders: await d.count('orders'), products: await d.count('products'), customers: await d.count('customers'), proofs: await d.count('attachments') });
+      setCurrent({ orders: await d.count('orders'), products: await d.count('products'), customers: await d.count('customers'), proofs: await d.count('attachments'), costs: await d.count('expenses') });
     })();
   }, []);
 
@@ -472,6 +472,7 @@ export function RestoreFlow({
             {row(t('Items'), info.counts.products, current.products)}
             {row(t('Ingredients'), info.counts.ingredients, ingredients.value.length)}
             {row(t('Customers'), info.counts.customers, current.customers)}
+            {row(t('Costs'), info.counts.expenses, current.costs)}
             {row(t('Staff accounts'), info.counts.users, users.value.length)}
             {info.attachmentsIncluded ? row(t('Payment proofs'), info.counts.attachments, current.proofs) : (<><dt>{t('Payment proofs')}</dt><dd class="muted">{t('not included')}</dd></>)}
           </dl>

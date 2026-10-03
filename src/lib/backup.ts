@@ -2,7 +2,7 @@ import { BACKUP_STORES, db, type BackupStoreName, type StoreMap } from './db';
 import { decryptText, encryptText, sha256Hex, uid, type EncryptedPayload } from './crypto';
 import type { Settings, Snapshot } from './types';
 
-export const BACKUP_SCHEMA = 2;
+export const BACKUP_SCHEMA = 3;
 export const APP_VERSION = '0.1.0';
 
 export type BackupData = { [K in BackupStoreName]: StoreMap[K][] };
@@ -125,6 +125,8 @@ const MIGRATIONS: Record<number, (b: BackupFile) => BackupFile> = {
   // v1 → v2: ingredients + attachments stores added. Product/cart/order additions are optional fields, so nothing else changes.
   // A v1 file never had payment proofs, so mark them "not included" — restoring it must not wipe the device's photos.
   1: (b) => ({ ...b, attachmentsIncluded: false, data: { ...b.data, ingredients: [], attachments: [] } }),
+  // v2 → v3: costs store added.
+  2: (b) => ({ ...b, data: { ...b.data, expenses: [] } }),
 };
 
 function migrate(b: BackupFile): BackupFile {

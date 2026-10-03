@@ -448,3 +448,43 @@ describe('pending orders', () => {
     expect(await attachmentsFor(parkedList.value[0].cart.proofKey!)).toHaveLength(1);
   });
 });
+
+import { blankExpense, deleteExpense, saveExpense } from './store';
+import { expensesBetween } from './db';
+import { costTime } from './report';
+
+describe('costs', () => {
+  it('are saved with the day they were spent, trimmed, and found by date range', async () => {
+    await setupShop();
+    const monday = costTime('2026-10-05');
+    const e = await saveExpense({ ...blankExpense(monday), label: '  Flour  ', amount: 1500 });
+    expect(e.label).toBe('Flour');
+    expect(e.at).toBe(monday);
+    await saveExpense({ ...blankExpense(costTime('2026-10-07')), label: 'Rent', kind: 'other', amount: 90000 });
+
+    const week = await expensesBetween(costTime('2026-10-05') - 43_200_000, costTime('2026-10-07') + 43_200_000);
+    expect(week.map((x) => x.label).sort()).toEqual(['Flour', 'Rent']);
+    const justMonday = await expensesBetween(new Date(2026, 9, 5).getTime(), new Date(2026, 9, 5, 23, 59, 59).getTime());
+    expect(justMonday.map((x) => x.label)).toEqual(['Flour']);
+  });
+
+  it('the sample shop comes with a fortnight of ingredient purchases to report on', async () => {
+    await loadAll();
+    await completeSetup({ storeName: 'Demo' }, { name: 'Owner', pin: '' }, true);
+    const costs = await getAll('expenses');
+    const ingredientIds = new Set((await getAll('ingredients')).map((i) => i.id));
+    expect(costs.length).toBeGreaterThan(10);
+    expect(costs.every((c) => c.amount > 0 && c.kind === 'ingredients' && ingredientIds.has(c.ingredientId!))).toBe(true);
+    expect(new Set(costs.map((c) => new Date(c.at).toDateString())).size).toBe(14); // one or more every day
+  });
+
+  it('need an amount, and can be changed and deleted', async () => {
+    await setupShop();
+    await expect(saveExpense({ ...blankExpense(), amount: 0 })).rejects.toThrow(/amount/i);
+    const e = await saveExpense({ ...blankExpense(), label: 'Milk', amount: 400 });
+    await saveExpense({ ...e, amount: 450 });
+    expect((await getAll('expenses')).map((x) => x.amount)).toEqual([450]);
+    await deleteExpense(e.id);
+    expect(await getAll('expenses')).toHaveLength(0);
+  });
+});

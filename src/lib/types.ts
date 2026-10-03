@@ -48,6 +48,8 @@ export interface Settings extends Stamped {
   autoTranslate?: boolean; // translate new and renamed items by themselves (Android app)
   /** Languages item names are printed in on receipts (at most 2): the first is the name, the second goes in small type under it. [] = as typed. */
   receiptNameLangs?: LangCode[];
+  /** What Reports subtracts from sales to show profit: the cost of the items sold (default), or the costs the shop added for the period. */
+  profitBasis?: 'sold' | 'added';
 }
 
 export interface Category extends Stamped {
@@ -111,6 +113,17 @@ export interface Product extends Stamped {
   names?: Partial<Record<LangCode, string>>;
   /** Languages in `names` that were machine-translated and not yet corrected by a person. */
   namesAuto?: LangCode[];
+}
+
+/** Money the shop spent — an ingredient purchase or any other cost — on the day it was paid. Reports can use these instead of per-item costs to work out net profit. */
+export interface Expense extends Stamped {
+  at: number; // the day it was spent (noon of that day, so it falls inside that day's report in any timezone)
+  amount: number; // minor units
+  label: string;
+  kind: 'ingredients' | 'other';
+  /** Set when it was picked from the ingredient list (amount defaults to packs × pack price). */
+  ingredientId?: string;
+  packs?: number;
 }
 
 export interface Customer extends Stamped {

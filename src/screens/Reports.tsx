@@ -1,14 +1,15 @@
 import { useEffect, useState } from 'preact/hooks';
 import { t, tn } from '../i18n';
-import { ordersBetween } from '../lib/db';
+import { expensesBetween, ordersBetween } from '../lib/db';
 import { toCsv } from '../lib/csv';
 import { toInput } from '../lib/money';
 import { saveTextFile } from '../lib/platform';
 import { payLabel } from '../lib/receipt';
-import { buildReport, presetRange, startOfDay, type Report } from '../lib/report';
+import { buildReport, netProfitFrom, presetRange, startOfDay, totalCosts, type Report } from '../lib/report';
 import { categories, lowStock, money, products, settings, showToast } from '../lib/store';
-import type { Order } from '../lib/types';
+import type { Expense, Order } from '../lib/types';
 import { Chips, Empty, Icon } from '../ui/components';
+import { CostsCard } from './Costs';
 
 type Preset = 'today' | 'yesterday' | '7d' | '30d' | 'month' | 'custom';
 
@@ -19,6 +20,8 @@ export function Reports() {
   const [to, setTo] = useState(today);
   const [orders, setOrders] = useState<Order[]>([]);
   const [report, setReport] = useState<Report | null>(null);
+  const [costs, setCosts] = useState<Expense[]>([]);
+  const [reload, setReload] = useState(0); // bumped when a cost is added, changed or deleted
 
   const range = preset === 'custom'
     ? { from: startOfDay(new Date(from + 'T00:00').getTime()), to: startOfDay(new Date(to + 'T00:00').getTime()) + 86_400_000 - 1 }
@@ -26,13 +29,14 @@ export function Reports() {
 
   useEffect(() => {
     let live = true;
-    ordersBetween(range.from, range.to).then((o) => {
+    Promise.all([ordersBetween(range.from, range.to), expensesBetween(range.from, range.to)]).then(([o, e]) => {
       if (!live) return;
       setOrders(o);
+      setCosts(e.sort((a, b) => b.at - a.at || b.updatedAt - a.updatedAt));
       setReport(buildReport(o, products.value, categories.value, range));
     });
     return () => { live = false; };
-  }, [preset, from, to, products.value, categories.value]);
+  }, [preset, from, to, products.value, categories.value, reload]);
 
   async function exportCsv() {
     const dec = settings.value.currencyDecimals;
@@ -49,6 +53,11 @@ export function Reports() {
   }
 
   const r = report;
+  const basis = settings.value.profitBasis ?? 'sold';
+  const spent = totalCosts(costs);
+  const netProfit = r ? netProfitFrom(r, spent) : 0;
+  // A new cost is dated today, or the last day of the period when that is in the past ("yesterday", an earlier custom range).
+  const costsCard = <CostsCard costs={costs} defaultDay={Math.min(Date.now(), range.to)} onChanged={() => setReload((n) => n + 1)} />;
   const maxBucket = Math.max(1, ...(r?.byBucket.map((b) => b.net) ?? [1]));
   const maxProd = Math.max(1, ...(r?.topProducts.map((p) => p.net) ?? [1]));
   const maxCat = Math.max(1, ...(r?.byCategory.map((p) => p.net) ?? [1]));
@@ -69,35 +78,51 @@ export function Reports() {
             <label class="field"><span class="label">{t('To')}</span><input class="input" type="date" value={to} min={from} onInput={(e) => setTo((e.currentTarget as HTMLInputElement).value)} /></label>
           </div>
         )}
-        {!r || r.orders === 0 ? (
-          <Empty icon="chart" title={t('No sales in this period')}>{t('Pick another date range, or make a sale.')}</Empty>
+        {!r || (r.orders === 0 && costs.length === 0) ? (
+          <div class="stack">
+            <Empty icon="chart" title={t('No sales in this period')}>{t('Pick another date range, or make a sale.')}</Empty>
+            {costsCard}
+          </div>
         ) : (
           <div class="stack">
             <div class="kpis">
               <div class="kpi hero"><div class="muted small">{t('Net sales')}</div><div class="v">{money(r.net)}</div></div>
               <div class="kpi"><div class="muted small">{t('Orders')}</div><div class="v">{r.orders}</div></div>
               <div class="kpi"><div class="muted small">{t('Avg. order')}</div><div class="v">{money(r.avgOrder)}</div></div>
-              <div class="kpi"><div class="muted small">{t('Gross profit')}</div><div class="v">{money(r.profit)}</div></div>
+              {basis === 'sold' ? (
+                <div class="kpi"><div class="muted small">{t('Gross profit')}</div><div class="v">{money(r.profit)}</div></div>
+              ) : (
+                <>
+                  <div class="kpi"><div class="muted small">{t('Net profit')}</div><div class="v" style={netProfit < 0 ? 'color:var(--danger)' : ''}>{money(netProfit)}</div></div>
+                  <div class="kpi"><div class="muted small">{t('Costs added')}</div><div class="v">{money(spent)}</div></div>
+                </>
+              )}
               <div class="kpi"><div class="muted small">{t('Items sold')}</div><div class="v">{r.items}</div></div>
               <div class="kpi"><div class="muted small">{t('Tax collected')}</div><div class="v">{money(r.tax)}</div></div>
               <div class="kpi"><div class="muted small">{t('Discounts')}</div><div class="v">{money(r.discounts)}</div></div>
               <div class="kpi"><div class="muted small">{t('Refunds')}</div><div class="v">{money(r.refunds)}</div></div>
             </div>
 
-            <div class="card pad">
-              <div class="bold" style="margin-bottom:0.625rem">{range.to - range.from <= 86_400_000 ? t('Sales by hour') : t('Sales by day')}</div>
-              <div class="spark" role="img" aria-label={t('Sales chart')}>
-                {r.byBucket.map((b) => (
-                  <div class="b" key={b.key} title={`${b.label}: ${money(b.net)}`}><i style={`height:${Math.round((b.net / maxBucket) * 100)}%`} /></div>
-                ))}
-              </div>
-              <div class="spark-labels"><span>{r.byBucket[0]?.label}</span><span>{r.byBucket[r.byBucket.length - 1]?.label}</span></div>
-            </div>
+            {costsCard}
 
-            <Breakdown title={t('Top items')} rows={r.topProducts.map((p) => ({ label: p.name, sub: t('{n} sold', { n: p.qty }), value: p.net }))} max={maxProd} />
-            <Breakdown title={t('By category')} rows={r.byCategory.map((c) => ({ label: c.name === 'Uncategorised' ? t('Uncategorised') : c.name, value: c.net }))} max={maxCat} />
-            <Breakdown title={t('By payment method')} rows={r.byMethod.map((m) => ({ label: payLabel(m.method), value: m.amount }))} max={maxPay} />
-            <button class="btn block" onClick={exportCsv}><Icon name="download" /> {t('Export these sales (CSV)')}</button>
+            {r.orders > 0 && (
+              <>
+                <div class="card pad">
+                  <div class="bold" style="margin-bottom:0.625rem">{range.to - range.from <= 86_400_000 ? t('Sales by hour') : t('Sales by day')}</div>
+                  <div class="spark" role="img" aria-label={t('Sales chart')}>
+                    {r.byBucket.map((b) => (
+                      <div class="b" key={b.key} title={`${b.label}: ${money(b.net)}`}><i style={`height:${Math.round((b.net / maxBucket) * 100)}%`} /></div>
+                    ))}
+                  </div>
+                  <div class="spark-labels"><span>{r.byBucket[0]?.label}</span><span>{r.byBucket[r.byBucket.length - 1]?.label}</span></div>
+                </div>
+
+                <Breakdown title={t('Top items')} rows={r.topProducts.map((p) => ({ label: p.name, sub: t('{n} sold', { n: p.qty }), value: p.net }))} max={maxProd} />
+                <Breakdown title={t('By category')} rows={r.byCategory.map((c) => ({ label: c.name === 'Uncategorised' ? t('Uncategorised') : c.name, value: c.net }))} max={maxCat} />
+                <Breakdown title={t('By payment method')} rows={r.byMethod.map((m) => ({ label: payLabel(m.method), value: m.amount }))} max={maxPay} />
+                <button class="btn block" onClick={exportCsv}><Icon name="download" /> {t('Export these sales (CSV)')}</button>
+              </>
+            )}
           </div>
         )}
 

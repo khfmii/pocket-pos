@@ -17,12 +17,12 @@ device (IndexedDB), and backup files are the safety net.
 | **Photos** | Every picture you add — item photo, payment proof, shop logo — opens a **crop / rotate / brightness-contrast editor** first: drag the corners or edges, square-locked for item photos, free-form or fixed ratios for proofs and logos |
 | **Payment proof** | Attach one or more photos (bank slip, transfer screenshot) to any sale — at checkout, right after, or later from the order. Camera or gallery; view full size, share, delete (owner). Stored separately from orders so lists stay fast |
 | **Orders** | History with search, receipts, partial/full **refunds** (restock optional), **void** for mistakes, status badges, paperclip marker when a proof is attached |
-| **Items & stock** | Add/edit items with photo, price & cost (margin), SKU, barcode, emoji + colour, stock tracking with low-stock alerts, receive / count / waste adjustments, CSV import & export. **Select several items and change their category in one step** |
+| **Items & stock** | The Items list is split into **sections by category** (in your category order, with a count; items without a category last). Add/edit items with photo, price & cost (margin), SKU, barcode, emoji + colour, stock tracking with low-stock alerts, receive / count / waste adjustments, CSV import & export. **Select several items and change their category in one step** (each section has its own *Select all*) |
 | **Categories** | A built-in **library of ~80 ready-made categories** in 9 groups (cafe & drinks, meals, bakery, groceries, fashion, beauty & health, electronics, home & gifts, services) — switch each on or off, or a whole group at once. Or make your own with an **expandable icon picker** (300+ icons, or paste any emoji). Turned-off categories are hidden from the Sell screen and item forms without touching your items |
 | **Ingredients & costing** | Define ingredients by pack price (e.g. 1 kg flour = 2.50); build an item's recipe (grams/ml/pcs, unit conversion) with batch yield and extra cost (packaging, labour). Cost per item and profit/margin are calculated live and kept up to date when ingredient prices change; past sales keep the cost they were made with |
 | **Customers** | Contacts with a multi-line **remark** (allergies, preferences, special price), import from the **phone's contacts** (no contacts permission needed), purchase history, optional loyalty points |
 | **Cash drawer** | Open/close shifts, cash in/out, expected vs counted cash, end-of-shift report |
-| **Reports** | Net sales, orders, average order, gross profit, tax, discounts, refunds; sales by hour/day; top items; by category; by payment method; low stock; CSV export |
+| **Reports** | Net sales, orders, average order, **gross profit** (sales without tax minus the cost of the items sold), tax, discounts, refunds; **net profit from costs you add**: record ingredient purchases (pick the ingredient and packs bought — the amount fills in) or other costs (rent, packaging, gas) on the day you paid them, then switch *Calculate profit from* to **Costs added** and the report shows sales without tax minus the costs added in the same day / date range, with the costs listed underneath; sales by hour/day; top items; by category; by payment method; low stock; CSV export |
 | **Staff** | Owner / cashier roles, PIN lock screen, auto-lock, cashier permissions |
 | **Languages** | English, 简体中文, 繁體中文, Bahasa Melayu, Bahasa Indonesia, Español, 日本語, 한국어, ไทย, Tiếng Việt, Français, Deutsch, Português. **Phones follow the system language; PCs start in English.** Changeable any time in Settings |
 | **Easier to read** | Display size (Standard / Large / Extra large / Huge) scales text, buttons and spacing together and the layout reflows; high-contrast mode. Offered on the first-run screen |
@@ -33,7 +33,7 @@ device (IndexedDB), and backup files are the safety net.
 
 Settings → **Data & backup** (also offered on the first-run screen for moving to a new phone):
 
-- **Back up now** — one `pocketpos-backup-YYYYMMDD-HHMM.json` file with all sales, items, ingredients, customers, staff
+- **Back up now** — one `pocketpos-backup-YYYYMMDD-HHMM.json` file with all sales, items, ingredients, costs, customers, staff
   and settings. Payment-proof photos are included by default (a switch shows their size and lets you leave them out).
   Optional **password protection** (AES-256-GCM, PBKDF2-SHA256 250k iterations). On Android the file goes through the
   system share sheet (Drive, Files, email…); in a browser it downloads.

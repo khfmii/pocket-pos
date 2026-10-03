@@ -4,6 +4,7 @@ import type {
   CashMovement,
   Category,
   Customer,
+  Expense,
   Ingredient,
   Order,
   Parked,
@@ -28,6 +29,7 @@ export interface StoreMap {
   cashMovements: CashMovement;
   stockMoves: StockMove;
   parked: Parked;
+  expenses: Expense;
   snapshots: Snapshot;
 }
 export type StoreName = keyof StoreMap;
@@ -46,11 +48,12 @@ export const BACKUP_STORES = [
   'cashMovements',
   'stockMoves',
   'parked',
+  'expenses',
 ] as const satisfies readonly StoreName[];
 export type BackupStoreName = (typeof BACKUP_STORES)[number];
 
 export const DB_NAME = 'pocket-pos';
-const DB_VERSION = 2;
+const DB_VERSION = 3;
 
 let dbp: Promise<IDBPDatabase> | null = null;
 
@@ -83,6 +86,8 @@ export function db(): Promise<IDBPDatabase> {
         mk('ingredients');
         mk('attachments').createIndex('orderId', 'orderId');
       }
+      // v3: costs (ingredient purchases and other expenses) for net-profit reports.
+      if (oldVersion < 3) mk('expenses').createIndex('at', 'at');
     },
   });
   return dbp;
@@ -103,7 +108,7 @@ export async function getOne<S extends StoreName>(store: S, id: string): Promise
   return (await db()).get(store, id) as Promise<StoreMap[S] | undefined>;
 }
 
-export async function put<S extends 'settings' | 'categories' | 'products' | 'ingredients' | 'customers' | 'users' | 'orders' | 'attachments' | 'shifts' | 'cashMovements' | 'stockMoves' | 'parked'>(
+export async function put<S extends 'settings' | 'categories' | 'products' | 'ingredients' | 'customers' | 'users' | 'orders' | 'attachments' | 'shifts' | 'cashMovements' | 'stockMoves' | 'parked' | 'expenses'>(
   store: S,
   rec: StoreMap[S],
 ): Promise<StoreMap[S]> {
@@ -118,6 +123,10 @@ export async function remove(store: StoreName, id: string) {
 
 export async function ordersBetween(from: number, to: number): Promise<Order[]> {
   return (await db()).getAllFromIndex('orders', 'at', IDBKeyRange.bound(from, to)) as Promise<Order[]>;
+}
+
+export async function expensesBetween(from: number, to: number): Promise<Expense[]> {
+  return (await db()).getAllFromIndex('expenses', 'at', IDBKeyRange.bound(from, to)) as Promise<Expense[]>;
 }
 
 export async function ordersForCustomer(customerId: string): Promise<Order[]> {

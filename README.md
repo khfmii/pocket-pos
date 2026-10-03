@@ -137,3 +137,7 @@ src/ui       shared components, barcode scanner
 android/     Capacitor Android project (generated, plus our local ContactPickerPlugin); `npx cap sync android` after web changes
 scripts/     icon generation, APK build, translation-key extractor
 ```
+
+## License
+
+[MIT](LICENSE)

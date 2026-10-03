@@ -2,6 +2,7 @@
   "name": "pocket-pos",
   "version": "0.1.0",
   "private": true,
+  "license": "MIT",
   "description": "Offline-first point-of-sale for phones. Web/PWA first, packaged as an Android APK with Capacitor.",
   "type": "module",
   "scripts": {

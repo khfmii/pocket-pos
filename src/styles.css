@@ -107,6 +107,9 @@ button { font: inherit; color: inherit; cursor: pointer; }
 }
 .list-row:last-child { border-bottom: 0; }
 button.list-row:active { background: var(--surface-2); }
+.cat-head { display: flex; align-items: center; gap: 0.5rem; margin: 1.125rem 0.25rem 0.5rem; font-weight: 700; }
+.cat-head .grow { min-width: 0; }
+.cat-head .count { font-size: 0.8125rem; font-weight: 600; color: var(--muted); }
 .list-row.pending { flex-wrap: wrap; }
 .pending-open { flex: 1 1 9rem; min-width: 0; text-align: start; background: none; border: 0; padding: 0; }
 .list-row .lead { width: 2.375rem; height: 2.375rem; border-radius: 0.625rem; background: var(--primary-soft); color: var(--primary); display: grid; place-items: center; font-size: 1.25rem; flex: none; }

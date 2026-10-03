@@ -1,7 +1,7 @@
 import 'fake-indexeddb/auto';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { createBackup, decodeBackup, encodeBackup } from './backup';
-import { ALL_PRESETS, categoryFor, PRESET_GROUPS } from './categories';
+import { ALL_PRESETS, categoryFor, groupByCategory, PRESET_GROUPS } from './categories';
 import { closeDb, getAll } from './db';
 import { EMOJI_GROUPS, firstGrapheme, QUICK_EMOJIS } from './emoji';
 import {
@@ -168,5 +168,28 @@ describe('moving many items to a category', () => {
     expect(await moveProducts(['nope'], drinks)).toBe(0);
     await deleteCategory(drinks);
     expect(products.value[0].categoryId).toBe('');
+  });
+});
+
+describe('grouping items by category', () => {
+  const cats = [{ id: 'a', name: 'Coffee' }, { id: 'b', name: 'Bakery' }, { id: 'c', name: 'Empty' }];
+  const item = (name: string, categoryId: string) => ({ name, categoryId });
+
+  it('makes one section per category in the shop’s order, keeping each section’s item order', () => {
+    const g = groupByCategory([item('Bagel', 'b'), item('Latte', 'a'), item('Cake', 'b'), item('Mocha', 'a')], cats);
+    expect(g.map((x) => x.category?.name)).toEqual(['Coffee', 'Bakery']); // not the order the items arrive in
+    expect(g[0].items.map((i) => i.name)).toEqual(['Latte', 'Mocha']);
+    expect(g[1].items.map((i) => i.name)).toEqual(['Bagel', 'Cake']);
+  });
+
+  it('leaves out categories with no items', () => {
+    expect(groupByCategory([item('Latte', 'a')], cats).map((x) => x.category?.id)).toEqual(['a']);
+    expect(groupByCategory([], cats)).toEqual([]);
+  });
+
+  it('puts items with no (or a deleted) category last, in one section', () => {
+    const g = groupByCategory([item('Mystery', ''), item('Latte', 'a'), item('Orphan', 'gone')], cats);
+    expect(g.map((x) => x.category?.id ?? null)).toEqual(['a', null]);
+    expect(g[1].items.map((i) => i.name)).toEqual(['Mystery', 'Orphan']);
   });
 });

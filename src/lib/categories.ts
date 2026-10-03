@@ -152,3 +152,16 @@ export function categoryFor<C extends { preset?: string; name: string }>(cats: C
   const name = preset.name().trim().toLowerCase();
   return cats.find((c) => c.preset === preset.id) ?? cats.find((c) => c.name.trim().toLowerCase() === name);
 }
+
+/**
+ * Splits items into one section per category, in the shop's category order, each keeping the items' own order.
+ * Empty categories are left out. Items whose category is missing (deleted, or never set) come last under `category: null`.
+ */
+export function groupByCategory<P extends { categoryId: string }, C extends { id: string }>(items: P[], cats: C[]): { category: C | null; items: P[] }[] {
+  const byId = new Map<string, P[]>();
+  for (const p of items) byId.set(p.categoryId, [...(byId.get(p.categoryId) ?? []), p]);
+  const out = cats.flatMap((c) => (byId.get(c.id)?.length ? [{ category: c as C | null, items: byId.get(c.id)! }] : []));
+  const known = new Set(cats.map((c) => c.id));
+  const loose = items.filter((p) => !known.has(p.categoryId));
+  return loose.length ? [...out, { category: null, items: loose }] : out;
+}

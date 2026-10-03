@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'preact/hooks';
 import { t, tn } from '../i18n';
 import { uid } from '../lib/crypto';
 import { pickPhoto } from '../lib/image';
+import { groupByCategory } from '../lib/categories';
 import { toCsv, parseCsv } from '../lib/csv';
 import { parseMoney, toInput } from '../lib/money';
 import { nameMatches } from '../lib/names';
@@ -43,7 +44,26 @@ export function Products() {
     );
   }, [products.value, q, filter]);
 
-  const catName = (id: string) => categories.value.find((c) => c.id === id)?.name ?? t('Uncategorised');
+  const toggle = (id: string) => setPicked((cur) => { const n = new Set(cur); n.has(id) ? n.delete(id) : n.add(id); return n; });
+  const row = (p: Product) => {
+    const detail = [p.sku, p.variants.length > 0 && tn(p.variants.length + 1, '{n} size', '{n} sizes')].filter(Boolean).join(' · ');
+    return (
+      <button class="list-row" key={p.id} onClick={() => (selecting ? toggle(p.id) : setEditing(p))} style={p.active ? '' : 'opacity:.55'} aria-pressed={selecting ? picked.has(p.id) : undefined}>
+        {selecting && <span class={`check ${picked.has(p.id) ? 'on' : ''}`}><Icon name="check" size="sm" /></span>}
+        <div class="lead">{p.image ? <img src={p.image} alt="" loading="lazy" /> : p.emoji || '🛍️'}</div>
+        <div class="grow">
+          <div class="bold ellipsis">{productName(p)}{!p.active && ` ${t('(hidden)')}`}</div>
+          {detail && <div class="sub ellipsis">{detail}</div>}
+        </div>
+        <div style="text-align:right">
+          <div class="money bold">{money(p.price)}</div>
+          {p.trackStock && (
+            <span class={`pill ${p.stock <= 0 ? 'bad' : p.stock <= p.lowStock ? 'warn' : ''}`}>{t('{n} in stock', { n: p.stock })}</span>
+          )}
+        </div>
+      </button>
+    );
+  };
 
   const switcher = (
     <div class="pad" style="padding-bottom:0">
@@ -98,24 +118,24 @@ export function Products() {
         ) : list.length === 0 ? (
           <Empty icon="search" title={t('No items match')} />
         ) : (
-          <div class="list">
-            {list.map((p) => (
-              <button class="list-row" key={p.id} onClick={() => (selecting ? setPicked((cur) => { const n = new Set(cur); n.has(p.id) ? n.delete(p.id) : n.add(p.id); return n; }) : setEditing(p))} style={p.active ? '' : 'opacity:.55'} aria-pressed={selecting ? picked.has(p.id) : undefined}>
-                {selecting && <span class={`check ${picked.has(p.id) ? 'on' : ''}`}><Icon name="check" size="sm" /></span>}
-                <div class="lead">{p.image ? <img src={p.image} alt="" loading="lazy" /> : p.emoji || '🛍️'}</div>
-                <div class="grow">
-                  <div class="bold ellipsis">{productName(p)}{!p.active && ` ${t('(hidden)')}`}</div>
-                  <div class="sub ellipsis">{catName(p.categoryId)}{p.sku && ` · ${p.sku}`}{p.variants.length > 0 && ` · ${tn(p.variants.length + 1, '{n} size', '{n} sizes')}`}</div>
-                </div>
-                <div style="text-align:right">
-                  <div class="money bold">{money(p.price)}</div>
-                  {p.trackStock && (
-                    <span class={`pill ${p.stock <= 0 ? 'bad' : p.stock <= p.lowStock ? 'warn' : ''}`}>{t('{n} in stock', { n: p.stock })}</span>
+          // One section per category (the shop's own order), so a long catalogue reads as groups rather than one long list.
+          groupByCategory(list, categories.value).map(({ category, items }) => {
+            const allPicked = items.every((p) => picked.has(p.id));
+            return (
+              <section key={category?.id ?? 'none'}>
+                <div class="cat-head" style={category && !isEnabled(category) ? 'opacity:.6' : ''}>
+                  <span class="grow ellipsis">{category ? `${category.emoji} ${category.name}` : t('Uncategorised')}</span>
+                  <span class="count">{items.length}</span>
+                  {selecting && (
+                    <button class="btn sm" onClick={() => setPicked((cur) => { const n = new Set(cur); for (const p of items) allPicked ? n.delete(p.id) : n.add(p.id); return n; })}>
+                      {allPicked ? t('Clear') : t('Select all')}
+                    </button>
                   )}
                 </div>
-              </button>
-            ))}
-          </div>
+                <div class="list">{items.map(row)}</div>
+              </section>
+            );
+          })
         )}
       </div>
       {selecting ? (

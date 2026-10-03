@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Pocket POS</string>
+    <string name="title_activity_main">Pocket POS</string>
+    <string name="package_name">com.pocketpos.app</string>
+    <string name="custom_url_scheme">com.pocketpos.app</string>
+</resources>

@@ -1,0 +1,312 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Pocket POS teaser compositor</title>
+<style>
+  html, body { margin: 0; background: #000; overflow: hidden; }
+  #stage { position: relative; width: 1080px; height: 1920px; overflow: hidden; background: #0b1022;
+    font-family: "Avenir Next", "SF Pro Display", -apple-system, "Helvetica Neue", Arial, sans-serif; color: #fff;
+    --acc1: #4ee3c1; --acc2: #ff6fa8; --glow: rgba(78, 227, 193, .35); }
+  canvas#bg { position: absolute; inset: 0; width: 1080px; height: 1920px; }
+  #phone { position: absolute; left: 0; top: 0; width: 668px; height: 1413px; transform-origin: 0 0; will-change: transform; }
+  #body { position: absolute; inset: 0; border-radius: 92px;
+    background: linear-gradient(145deg, #353a47, #0b0d12 38%, #1b1f2a 78%, #2c313e);
+    box-shadow: inset 0 0 0 2px #4a5160, inset 0 0 0 6px #07080b, 0 80px 140px rgba(0, 0, 0, .55), 0 0 200px var(--glow); }
+  .sidebtn { position: absolute; width: 7px; border-radius: 4px; background: linear-gradient(90deg, #2a2e39, #4a5160); }
+  #screen { position: absolute; left: 14px; top: 14px; width: 640px; height: 1385px; border-radius: 80px; overflow: hidden; background: #fff; }
+  #screen img { position: absolute; left: 0; top: 0; width: 640px; height: 1385px; display: block; }
+  #status { position: absolute; left: 0; top: 0; width: 640px; height: 49px; display: flex; align-items: center; justify-content: space-between;
+    padding: 0 52px 0 56px; box-sizing: border-box; color: #14181f; font: 600 22px/1 "SF Pro Text", -apple-system, "Helvetica Neue", Arial, sans-serif; letter-spacing: .2px; }
+  #status .ic { display: flex; gap: 9px; align-items: center; }
+  #punch { position: absolute; left: 308px; top: 14px; width: 24px; height: 24px; border-radius: 50%; background: #05060a; box-shadow: 0 0 0 3px rgba(5, 6, 10, .35); }
+  #home { position: absolute; left: 220px; top: 1366px; width: 200px; height: 7px; border-radius: 4px; background: rgba(12, 16, 24, .82); }
+  #gloss { position: absolute; left: 14px; top: 14px; width: 640px; height: 1385px; border-radius: 80px; pointer-events: none;
+    background: linear-gradient(112deg, rgba(255, 255, 255, .16), rgba(255, 255, 255, 0) 26%); }
+  .tap { position: absolute; width: 0; height: 0; opacity: 0; }
+  .tap i { position: absolute; left: -70px; top: -70px; width: 140px; height: 140px; border-radius: 50%; box-sizing: border-box;
+    border: 6px solid rgba(255, 255, 255, .95); background: rgba(78, 227, 193, .42); box-shadow: 0 0 0 3px rgba(11, 16, 34, .35), 0 8px 24px rgba(0, 0, 0, .25); }
+  #scrimTop { position: absolute; left: 0; top: 0; width: 1080px; height: 560px; pointer-events: none;
+    background: linear-gradient(#0b1022 0%, rgba(11, 16, 34, .96) 52%, rgba(11, 16, 34, .6) 80%, rgba(11, 16, 34, 0) 100%); }
+  #scrimBot { position: absolute; left: 0; top: 1620px; width: 1080px; height: 300px; pointer-events: none;
+    background: linear-gradient(rgba(11, 16, 34, 0), rgba(11, 16, 34, .5)); }
+  .cap { position: absolute; left: 0; top: 118px; width: 1080px; text-align: center; opacity: 0; }
+  .cap .line { font-weight: 900; font-size: 104px; line-height: 1.08; letter-spacing: -1.5px; text-shadow: 0 5px 0 rgba(0, 0, 0, .22); white-space: nowrap; }
+  .cap .w { display: inline-block; margin: 0 .13em; will-change: transform, opacity; }
+  .cap .hl { background: var(--acc1); color: #0b1022; padding: 0 .2em; border-radius: .26em; text-shadow: none; margin: 0 .05em; }
+  .cap .sub { display: inline-block; margin-top: 26px; padding: 12px 30px; border-radius: 999px; font-weight: 700; font-size: 37px; letter-spacing: .2px;
+    background: rgba(24, 30, 62, .86); border: 2px solid rgba(255, 255, 255, .3); }
+  #langs { position: absolute; left: 0; width: 1080px; top: 1635px; display: flex; justify-content: center; gap: 10px; opacity: 0; }
+  #langs span { padding: 12px 22px; border-radius: 999px; font-weight: 800; font-size: 32px; background: rgba(11, 16, 34, .86); color: rgba(255, 255, 255, .75);
+    border: 2px solid rgba(255, 255, 255, .25); }
+  #langs span.on { background: var(--acc1); color: #0b1022; border-color: transparent; }
+  #flash { position: absolute; inset: 0; background: #fff; opacity: 0; pointer-events: none; }
+  #end { position: absolute; inset: 0; opacity: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+  #end img { width: 330px; height: 330px; border-radius: 76px; box-shadow: 0 30px 90px rgba(0, 0, 0, .5), 0 0 140px var(--glow); }
+  #end .title { font-weight: 900; font-size: 148px; letter-spacing: -3px; margin-top: 56px; text-shadow: 0 6px 0 rgba(0, 0, 0, .22); }
+  #end .tag { font-weight: 700; font-size: 54px; color: rgba(255, 255, 255, .86); margin-top: 6px; }
+  #end .chips { display: flex; gap: 16px; margin-top: 54px; }
+  #end .chips span { padding: 16px 30px; border-radius: 999px; font-weight: 800; font-size: 38px; background: rgba(255, 255, 255, .13); border: 2px solid rgba(255, 255, 255, .3); }
+  #end .cta { margin-top: 64px; padding: 28px 64px; border-radius: 999px; font-weight: 900; font-size: 52px; background: var(--acc1); color: #0b1022;
+    box-shadow: 0 18px 60px rgba(78, 227, 193, .45); }
+</style>
+<div id="stage">
+  <canvas id="bg" width="1080" height="1920"></canvas>
+  <div id="phone">
+    <div id="body">
+      <i class="sidebtn" style="right:-7px;top:330px;height:120px"></i>
+      <i class="sidebtn" style="right:-7px;top:500px;height:70px"></i>
+      <i class="sidebtn" style="left:-7px;top:420px;height:160px"></i>
+    </div>
+    <div id="screen">
+      <img id="imgA" alt=""><img id="imgB" alt="">
+      <div id="taps"></div>
+      <div id="status"><span>10:24</span>
+        <span class="ic">
+          <svg width="30" height="22" viewBox="0 0 30 22"><path d="M15 21 1.5 7.5a19 19 0 0 1 27 0z" fill="#14181f"/></svg>
+          <svg width="28" height="22" viewBox="0 0 28 22"><path d="M0 22V16h5v6zM8 22V11h5v11zM16 22V6h5v16zM24 22V0h4v22z" fill="#14181f"/></svg>
+          <svg width="42" height="22" viewBox="0 0 42 22"><rect x="1" y="2" width="36" height="18" rx="5" fill="none" stroke="#14181f" stroke-width="2.5"/><rect x="4.5" y="5.5" width="29" height="11" rx="2.5" fill="#14181f"/><rect x="38.5" y="8" width="3" height="6" rx="1.5" fill="#14181f"/></svg>
+        </span>
+      </div>
+      <div id="punch"></div><div id="home"></div>
+    </div>
+    <div id="gloss"></div>
+  </div>
+  <div id="scrimTop"></div><div id="scrimBot"></div>
+  <div id="caps"></div>
+  <div id="langs"><span>English</span><span>简体中文</span><span>日本語</span><span>Español</span><span>+9 more</span></div>
+  <div id="end">
+    <img src="/public/icon-512.png" alt="">
+    <div class="title">Pocket POS</div>
+    <div class="tag">Your whole shop in your pocket.</div>
+    <div class="chips"><span>Offline-first</span><span>No account</span><span>13 languages</span></div>
+    <div class="cta">Pocket POS for Android</div>
+  </div>
+  <div id="flash"></div>
+</div>
+<script type="module">
+import { FPS, SEGMENTS, CUTS, videoToTake, takeToVideo, segmentAt } from '/timeline.mjs';
+
+const K = 640 / 390, SX = 14, SY = 14;
+const css = (x, y) => [SX + x * K, SY + y * K];       // app CSS px -> phone-body px
+const clamp = (x, a = 0, b = 1) => Math.min(b, Math.max(a, x));
+const E = {
+  lin: (p) => p,
+  inOut: (p) => (p < .5 ? 4 * p * p * p : 1 - Math.pow(-2 * p + 2, 3) / 2),
+  inOut5: (p) => (p < .5 ? 16 * p ** 5 : 1 - Math.pow(-2 * p + 2, 5) / 2),
+  out: (p) => 1 - Math.pow(1 - p, 3),
+  back: (p) => { const c1 = 1.9, c3 = c1 + 1; return 1 + c3 * Math.pow(p - 1, 3) + c1 * Math.pow(p - 1, 2); },
+  spring: (p) => (p <= 0 ? 0 : p >= 1 ? 1 : 1 - Math.exp(-7 * p) * Math.cos(11 * p)),
+};
+const rndSeed = (a) => () => { a |= 0; a = (a + 0x6d2b79f5) | 0; let t = Math.imul(a ^ (a >>> 15), 1 | a); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
+
+// ---------- takes ----------
+const takes = {};
+window.ready = (async () => { for (const n of ['sell', 'lang', 'reports']) takes[n] = await (await fetch(`/takes/${n}/take.json`)).json(); await document.fonts.ready; })();
+const frameUrl = (take, i) => `/takes/${take}/${String(clamp(i, 0, takes[take].frames - 1)).padStart(5, '0')}.jpg`;
+async function setImg(img, url) { if (img.dataset.u !== url) { img.dataset.u = url; img.src = url; try { await img.decode(); } catch (e) {} } }
+
+// ---------- camera (focus point in phone-body px -> anchor on canvas) ----------
+const Z = { rx: 0, ry: 0, rz: 0, ax: 540 };
+const SELL = { ...Z, s: 1.18, fx: 334, fy: 670, ay: 1190 };       // photo grid + cart bar
+const CART = { ...Z, s: 1.08, fx: 334, fy: 703, ay: 1170 };       // full-screen order
+const PAY = { ...Z, s: 1.20, fx: 334, fy: 933, ay: 1290 };        // payment sheet, bottom-aligned
+const RCPT = { ...Z, s: 1.10, fx: 334, fy: 900, ay: 1311 };       // sale complete / share sheet
+const LANG = { ...Z, s: 1.04, fx: 334, fy: 700, ay: 1168 };       // language flip + reports
+const CAM = [
+  { t: 0.00, s: .96, fx: 334, fy: 706, ax: 540, ay: 1950, rx: 14, ry: -22, rz: -10 },
+  { t: 0.80, s: 1.0, fx: 334, fy: 706, ax: 540, ay: 1195, rx: 3, ry: -4, rz: -1.5, e: 'back' },
+  { t: 1.62, s: 1.0, fx: 334, fy: 706, ax: 540, ay: 1190, rx: 0, ry: 0, rz: 0, e: 'inOut' },
+  { t: 2.10, ...SELL, e: 'inOut5' },
+  { t: 2.85, ...SELL, fy: 680, e: 'inOut' },
+  { t: 3.35, ...CART, e: 'inOut5' },
+  { t: 3.62, ...CART, e: 'inOut' },
+  { t: 4.12, ...PAY, e: 'inOut5' },
+  { t: 5.65, ...PAY, e: 'inOut' },
+  { t: 6.30, ...RCPT, e: 'inOut5' },
+  { t: 8.68, ...RCPT, e: 'inOut' },
+  { t: 8.72, ...LANG, e: 'out' },
+  { t: 10.95, ...LANG, e: 'inOut' },
+  { t: 11.02, ...LANG, fy: 706, e: 'out' },
+  { t: 12.38, ...LANG, fy: 706, e: 'inOut' },
+  { t: 12.85, s: 1.0, fx: 334, fy: 706, ax: 540, ay: 2700, rx: -10, ry: 18, rz: 14, e: 'inOut5' },
+];
+function camAt(t) {
+  let i = 0; while (i < CAM.length - 2 && t >= CAM[i + 1].t) i++;
+  const a = CAM[i], b = CAM[i + 1];
+  const p = clamp((t - a.t) / (b.t - a.t)), e = (E[b.e || 'inOut'])(p);
+  const o = {}; for (const k of ['s', 'fx', 'fy', 'ax', 'ay', 'rx', 'ry', 'rz']) o[k] = a[k] + (b[k] - a[k]) * e;
+  return o;
+}
+
+// ---------- accents ----------
+const hex = (h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16));
+const ACC = [
+  { t: 0, c: '#4ee3c1', d: '#ff6fa8' }, { t: 3.7, c: '#9b8cff', d: '#4ee3c1' }, { t: 5.95, c: '#ff6fa8', d: '#ffd23f' },
+  { t: 8.7, c: '#ffd23f', d: '#ff6fa8' }, { t: 11.0, c: '#4ee3c1', d: '#9b8cff' }, { t: 12.6, c: '#4ee3c1', d: '#ff6fa8' },
+];
+function accAt(t) {
+  let i = 0; while (i < ACC.length - 1 && t >= ACC[i + 1].t) i++;
+  const a = ACC[i], b = ACC[Math.min(i + 1, ACC.length - 1)];
+  const p = a === b ? 0 : E.inOut(clamp((t - b.t + 0.35) / 0.35));
+  const mix = (x, y) => hex(x).map((v, k) => Math.round(v + (hex(y)[k] - v) * p));
+  return { c: mix(a.c, b.c), d: mix(a.d, b.d) };
+}
+
+// ---------- background ----------
+const g = document.getElementById('bg').getContext('2d');
+const R = rndSeed(7);
+const PAL = ['#4ee3c1', '#ff6fa8', '#ffd23f', '#9b8cff', '#ffffff'];
+const parts = Array.from({ length: 46 }, () => ({ x: R() * 1080, y: R() * 1920, sz: 9 + R() * 24, vy: 16 + R() * 58, vx: (R() - .5) * 16, kind: Math.floor(R() * 4), col: PAL[Math.floor(R() * PAL.length)], rot: R() * 3, spin: (R() - .5) * .9, a: .22 + R() * .5, tw: R() * 6 }));
+const bursts = [];
+function addBurst(t0, x, y, n, speed, seed) { const r = rndSeed(seed); bursts.push({ t0, x, y, p: Array.from({ length: n }, () => ({ ang: r() * Math.PI * 2, v: speed * (.35 + r() * .8), sz: 8 + r() * 14, col: PAL[Math.floor(r() * PAL.length)], rot: r() * 3 })) }); }
+function shape(kind, s) {
+  g.beginPath();
+  if (kind === 0) g.rect(-s / 2, -s / 2, s, s);
+  else if (kind === 1) { g.rect(-s / 2, -s / 6, s, s / 3); g.rect(-s / 6, -s / 2, s / 3, s); }
+  else if (kind === 2) { const r1 = s * .75, r2 = s * .22; for (let i = 0; i < 8; i++) { const a = (i * Math.PI) / 4, r = i % 2 ? r2 : r1; g.lineTo(Math.cos(a) * r, Math.sin(a) * r); } g.closePath(); }
+  else { g.arc(0, 0, s / 2.2, 0, 7); }
+  kind === 3 ? g.stroke() : g.fill();
+}
+function drawBg(t, acc) {
+  const gr = g.createLinearGradient(0, 0, 0, 1920); gr.addColorStop(0, '#0a0f20'); gr.addColorStop(1, '#171a4c');
+  g.globalAlpha = 1; g.fillStyle = gr; g.fillRect(0, 0, 1080, 1920);
+  const glow = (x, y, r, c, a) => { const rg = g.createRadialGradient(x, y, 0, x, y, r); rg.addColorStop(0, `rgba(${c.join(',')},${a})`); rg.addColorStop(1, `rgba(${c.join(',')},0)`); g.fillStyle = rg; g.fillRect(0, 0, 1080, 1920); };
+  glow(240 + Math.sin(t * .6) * 70, 560 + Math.cos(t * .5) * 50, 760, acc.c, .34);
+  glow(880 + Math.cos(t * .5) * 60, 1480 + Math.sin(t * .7) * 60, 820, acc.d, .30);
+  g.fillStyle = 'rgba(255,255,255,.07)';
+  for (let y = 30; y < 1920; y += 64) for (let x = 30; x < 1080; x += 64) g.fillRect(x, y, 3, 3);
+  for (const p of parts) {
+    const y = ((p.y - p.vy * t) % 2000 + 2000) % 2000 - 40, x = p.x + p.vx * t + Math.sin(t * .8 + p.tw) * 14;
+    g.save(); g.translate(x, y); g.rotate(p.rot + p.spin * t);
+    g.globalAlpha = p.a * (.65 + .35 * Math.sin(t * 2.2 + p.tw)); g.fillStyle = p.col; g.strokeStyle = p.col; g.lineWidth = 4;
+    shape(p.kind, p.sz); g.restore();
+  }
+  for (const b of bursts) {
+    const q = t - b.t0; if (q < 0 || q > 1.3) continue;
+    for (const p of b.p) {
+      const d = p.v * (1 - Math.exp(-q * 3.4)) / 3.4 * 1.0;
+      g.save(); g.translate(b.x + Math.cos(p.ang) * d, b.y + Math.sin(p.ang) * d + 420 * q * q);
+      g.rotate(p.rot + q * 4); g.globalAlpha = clamp(1.25 - q); g.fillStyle = p.col; g.fillRect(-p.sz / 2, -p.sz / 2, p.sz, p.sz); g.restore();
+    }
+  }
+  g.globalAlpha = 1;
+}
+
+// ---------- captions ----------
+const W = (s, hl) => ({ w: s, hl });
+const CAPS = [
+  { i: -0.12, o: 1.62, sub: 'No server · No account · Works offline', lines: [[W('Your'), W('whole'), W('shop')], [W('in'), W('your'), W('pocket.', 1)]] },
+  { i: 1.80, o: 3.62, sub: 'Photo grid · variants · discounts', lines: [[W('Ring'), W('up'), W('sales')], [W('in'), W('seconds', 1)]] },
+  { i: 3.78, o: 5.88, sub: 'Cash · card · e-wallet', lines: [[W('Split'), W('payments,')], [W('instant'), W('change', 1)]] },
+  { i: 6.02, o: 8.62, sub: 'Image · PDF · plain text', lines: [[W('Share'), W('receipts')], [W('with'), W('your'), W('logo', 1)]] },
+  { i: 8.84, o: 10.92, sub: '13 languages · names translate on-device', lines: [[W('Every'), W('customer,')], [W('their'), W('language', 1)]] },
+  { i: 11.08, o: 12.42, sub: 'Sales · margin · top items', lines: [[W('Know'), W('your')], [W('profit', 1)]] },
+];
+const capsEl = document.getElementById('caps');
+for (const c of CAPS) {
+  const d = document.createElement('div'); d.className = 'cap';
+  d.innerHTML = c.lines.map((l) => `<div class="line">${l.map((w) => `<span class="w ${w.hl ? 'hl' : ''}">${w.w}</span>`).join('')}</div>`).join('') + `<div class="sub">${c.sub}</div>`;
+  capsEl.appendChild(d); c.el = d; c.words = [...d.querySelectorAll('.w')]; c.subEl = d.querySelector('.sub');
+}
+
+// ---------- taps ----------
+const tapEls = [];
+function buildTaps() {
+  const holder = document.getElementById('taps');
+  for (const [name, tk] of Object.entries(takes)) for (const tp of tk.taps) {
+    const v = takeToVideo(name, tp.t); if (v === null) continue;
+    const el = document.createElement('div'); el.className = 'tap'; el.innerHTML = '<i></i>';
+    el.style.left = tp.x * K + 'px'; el.style.top = tp.y * K + 'px'; holder.appendChild(el); tapEls.push({ el, v });
+  }
+}
+
+// ---------- hook sparkles / bursts ----------
+let built = false;
+function build() {
+  buildTaps();
+  const fin = takes.sell.marks.finish ?? 5.6;
+  const vf = takeToVideo('sell', fin + 0.32);
+  if (vf !== null) addBurst(vf, 540, 760, 34, 760, 11);
+  addBurst(1.0, 540, 1480, 16, 420, 5);
+  addBurst(12.72, 540, 700, 46, 980, 21);
+  built = true;
+}
+
+// ---------- render ----------
+const $ = (id) => document.getElementById(id);
+const phone = $('phone'), imgA = $('imgA'), imgB = $('imgB'), flash = $('flash'), endEl = $('end'), langsEl = $('langs'), stage = $('stage');
+const endKids = [...endEl.children];
+const LANG_T = [{ at: 8.84, on: 0 }, { at: 9.1, on: 1 }, { at: 9.73, on: 2 }, { at: 10.37, on: 3 }];
+
+window.renderAt = async (t) => {
+  await window.ready; if (!built) build();
+  const acc = accAt(t);
+  stage.style.setProperty('--acc1', `rgb(${acc.c})`); stage.style.setProperty('--acc2', `rgb(${acc.d})`); stage.style.setProperty('--glow', `rgba(${acc.c},.32)`);
+  drawBg(t, acc);
+
+  // screen content
+  const { take, tt, i } = videoToTake(t);
+  const idx = Math.round(tt * FPS);
+  const jobs = [setImg(imgA, frameUrl(take, idx))];
+  const seg = SEGMENTS[i], prev = SEGMENTS[i - 1];
+  const dis = (t - seg.v0) / 0.16;
+  if (prev && prev.take !== seg.take && dis < 1) {
+    const pt = prev.a + (prev.v1 - prev.v0) * prev.speed;
+    jobs.push(setImg(imgB, frameUrl(prev.take, Math.round(pt * FPS)))); imgB.style.opacity = String(1 - E.out(clamp(dis)));
+  } else { imgB.style.opacity = '0'; }
+  await Promise.all(jobs);
+
+  // camera
+  const c = camAt(t);
+  const fl = t < 1.7 || t > 12.4 ? 1 : 0.35;
+  const ay = c.ay + Math.sin(t * 1.5) * 5 * fl, rz = c.rz + Math.sin(t * 1.1) * .22 * fl;
+  phone.style.transform = `translate(${c.ax}px, ${ay}px) perspective(2400px) rotateX(${c.rx}deg) rotateY(${c.ry}deg) rotateZ(${rz}deg) scale(${c.s}) translate(${-c.fx}px, ${-c.fy}px)`;
+
+  // tap ripples
+  for (const { el, v } of tapEls) {
+    const q = (t - v) / 0.5;
+    if (q < 0 || q > 1) { el.style.opacity = '0'; continue; }
+    const press = clamp(q / 0.18), rel = clamp((q - 0.18) / 0.82);
+    el.style.opacity = String(q < 0.18 ? .95 : 0.95 * (1 - E.out(rel)));
+    el.style.transform = `scale(${q < 0.18 ? 0.55 + 0.25 * E.out(press) : 0.8 + 0.9 * E.out(rel)})`;
+  }
+
+  // captions
+  for (const cp of CAPS) {
+    const loc = t - cp.i, out = clamp((t - cp.o) / 0.22);
+    if (loc < 0 || out >= 1) { cp.el.style.opacity = '0'; continue; }
+    cp.el.style.opacity = String(1 - out);
+    cp.el.style.transform = `translateY(${-out * 46}px) scale(${1 - out * .04})`;
+    cp.words.forEach((w, k) => {
+      const p = E.spring(clamp((loc - k * 0.075) / 0.5));
+      w.style.opacity = String(clamp(p * 1.6)); w.style.transform = `translateY(${(1 - p) * 70}px) scale(${.82 + .18 * p}) rotate(${w.classList.contains('hl') ? -2.4 * p : 0}deg)`;
+    });
+    const sp = E.spring(clamp((loc - 0.42) / 0.5));
+    cp.subEl.style.opacity = String(clamp(sp * 1.6)); cp.subEl.style.transform = `translateY(${(1 - sp) * 40}px)`;
+  }
+
+  // language pill
+  const lp = clamp((t - 8.84) / 0.3) * (1 - clamp((t - 10.9) / 0.2));
+  langsEl.style.opacity = String(lp); langsEl.style.transform = `translateY(${(1 - lp) * 30}px)`;
+  let on = -1; for (const l of LANG_T) if (t >= l.at) on = l.on;
+  [...langsEl.children].forEach((s, k) => s.classList.toggle('on', k === on));
+
+  // flash on cuts
+  let fa = 0; for (const ct of CUTS) { const q = (t - ct) / 0.2; if (q >= 0 && q < 1) fa = Math.max(fa, .55 * (1 - E.out(q))); }
+  flash.style.opacity = String(fa);
+
+  // end card
+  const e0 = 12.68;
+  endEl.style.opacity = t >= e0 - 0.02 ? '1' : '0';
+  const delays = [0, 0.14, 0.26, 0.42, 0.62];
+  endKids.forEach((k, n) => {
+    const p = E.spring(clamp((t - e0 - delays[n]) / 0.6));
+    const sc = n === 0 ? p : 1;
+    const pulse = n === 4 && t > 13.7 ? 1 + Math.sin((t - 13.7) * 7) * 0.025 : 1;
+    k.style.opacity = String(clamp(p * 1.5)); k.style.transform = `translateY(${(1 - p) * 60}px) scale(${(n === 0 ? .4 + .6 * sc : .9 + .1 * p) * pulse})`;
+  });
+  endEl.firstElementChild.style.marginTop = '-60px';
+  const fade = clamp((t - 14.78) / 0.22);
+  stage.style.filter = fade > 0 ? `brightness(${1 - fade * .85})` : 'none';
+  return true;
+};
+</script>

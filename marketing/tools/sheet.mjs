@@ -1,0 +1,22 @@
+// Contact sheet of images via headless Chrome: node sheet.mjs out.png img1 img2 ... [--w=300]
+import { launch, shot, sleep } from './chrome.mjs';
+import fs from 'node:fs';
+import path from 'node:path';
+const args = process.argv.slice(2);
+const out = args.shift();
+const wArg = args.find((a) => a.startsWith('--w='));
+const w = wArg ? +wArg.slice(4) : 300;
+const files = args.filter((a) => !a.startsWith('--'));
+const html = `<body style="margin:0;background:#111;display:flex;gap:6px;padding:6px;flex-wrap:wrap">${files.map((f) => `<img src="file://${path.resolve(f)}" style="width:${w}px">`).join('')}</body>`;
+const tmp = path.join(path.dirname(path.resolve(out)), '_sheet.html');
+fs.writeFileSync(tmp, html);
+const cols = Math.min(files.length, Math.floor(1800 / (w + 6)));
+const c = await launch({ port: 9342, profile: path.join(path.dirname(path.resolve(out)), 'prof-sheet'), width: cols * (w + 6) + 6, height: 1000 });
+await c.send('Page.enable');
+await c.send('Page.navigate', { url: `file://${tmp}` });
+await sleep(900);
+const h = await c.evaluate('document.body.scrollHeight');
+await c.send('Emulation.setDeviceMetricsOverride', { width: cols * (w + 6) + 6, height: h, deviceScaleFactor: 1, mobile: false });
+await sleep(300);
+await shot(c, path.resolve(out));
+await c.close();

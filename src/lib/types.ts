@@ -162,6 +162,8 @@ export interface Payment {
   tendered: number; // cash handed over (== amount for non-cash)
   /** Taken before the sale was finished (the order was set aside part-paid). Cash deposits went into the drawer when taken, so shift totals leave them out of the final sale. */
   deposit?: boolean;
+  /** When a deposit was taken. */
+  at?: number;
 }
 
 export interface Refund {
@@ -202,6 +204,8 @@ export interface Order extends Stamped {
   pointsRedeemed: number;
   /** Number of payment-proof photos (kept here so lists can show a clip icon without loading images). */
   attachmentCount?: number;
+  /** Set only on the made-up order a deposit slip is drawn from (never stored): what the customer still owes. */
+  pending?: { balance: number };
 }
 
 /** A photo attached to a sale — typically a bank transfer slip or other proof of payment. Stored apart from orders so lists stay light. */

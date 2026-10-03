@@ -893,5 +893,9 @@ const dict: Record<string, string> = {
   "Pay {amount}": "Trả {amount}",
   "Delete pending order": "Xóa đơn đang chờ",
   "Delete pending order?": "Xóa đơn đang chờ?",
+  "Deposit receipt": "Biên nhận đặt cọc",
+  "Deposit received": "Đã nhận tiền đặt cọc",
+  "Order: {name}": "Đơn: {name}",
+  "Not a final receipt. A full receipt is issued when the balance is paid.": "Đây chưa phải biên lai cuối cùng. Biên lai đầy đủ sẽ được cấp khi thanh toán nốt phần còn lại.",
 };
 export default dict;

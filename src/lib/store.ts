@@ -6,6 +6,7 @@ import { closeDb, db, getAll, put, remove, BACKUP_STORES } from './db';
 import { lang, t } from '../i18n';
 import { loadSampleData } from './demo';
 import { localName, receiptItemName, type ItemName } from './names';
+import { depositSlip } from './receipt';
 import { decimalsFor, formatMoney } from './money';
 import { recipeCost } from './recipe';
 import type {
@@ -538,13 +539,13 @@ const cashMovement = (type: 'in' | 'out', amount: number, reason: string, now: n
 export async function parkCart(o: { payments?: Payment[]; proofs?: string[] } = {}): Promise<Parked | null> {
   const c = cart.value;
   if (!c.lines.length) return null;
-  const fresh = (o.payments ?? []).filter((p) => p.amount > 0).map((p): Payment => ({ ...p, tendered: p.amount, deposit: true }));
+  const now = Date.now();
+  const fresh = (o.payments ?? []).filter((p) => p.amount > 0).map((p): Payment => ({ ...p, tendered: p.amount, deposit: true, at: now }));
   if (fresh.some((p) => p.method === 'points')) throw new Error(t('Points can only be used when the order is finished.'));
   if (fresh.length && settings.value.requireShift && !shift.value) throw new Error(t('Open a shift before selling.'));
   const proofs = o.proofs ?? [];
   const paid = [...(c.paid ?? []), ...fresh];
   const proofKey = c.proofKey ?? (proofs.length ? uid() : undefined);
-  const now = Date.now();
   const customer = customers.value.find((x) => x.id === c.customerId);
   const name = pendingLabel(c, customer?.name ?? '');
   const rec: Parked = {
@@ -562,6 +563,10 @@ export async function parkCart(o: { payments?: Payment[]; proofs?: string[] } = 
   clearCart();
   return rec;
 }
+
+/** The deposit slip for a pending order, with the customer and cashier names filled in. */
+export const depositSlipFor = (p: Parked) =>
+  depositSlip(p, settings.value, { customerName: customers.value.find((x) => x.id === p.cart.customerId)?.name ?? '', userName: session.value?.name ?? '' });
 
 /** Brings a pending order back to the screen (whatever was on screen is set aside first, so nothing is lost). */
 export async function recallParked(id: string) {

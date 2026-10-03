@@ -893,5 +893,9 @@ const dict: Record<string, string> = {
   "Pay {amount}": "Bayar {amount}",
   "Delete pending order": "Padam pesanan belum selesai",
   "Delete pending order?": "Padam pesanan belum selesai?",
+  "Deposit receipt": "Resit deposit",
+  "Deposit received": "Deposit diterima",
+  "Order: {name}": "Pesanan: {name}",
+  "Not a final receipt. A full receipt is issued when the balance is paid.": "Ini bukan resit akhir. Resit penuh dikeluarkan apabila baki dijelaskan.",
 };
 export default dict;

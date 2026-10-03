@@ -893,5 +893,9 @@ const dict: Record<string, string> = {
   "Pay {amount}": "付款 {amount}",
   "Delete pending order": "删除挂单",
   "Delete pending order?": "要删除这个挂单吗？",
+  "Deposit receipt": "订金收据",
+  "Deposit received": "已收订金",
+  "Order: {name}": "订单：{name}",
+  "Not a final receipt. A full receipt is issued when the balance is paid.": "这不是最终收据。付清余款后将开具完整收据。",
 };
 export default dict;

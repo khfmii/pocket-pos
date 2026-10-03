@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { buildReceipt, receiptText, sampleOrder } from './receipt';
+import { buildReceipt, depositSlip, receiptText, sampleOrder } from './receipt';
 import { defaultSettings } from './store';
-import type { Order, OrderLine, Settings } from './types';
+import type { CartLine, CartState, Order, OrderLine, Settings } from './types';
 
 const line = (over: Partial<OrderLine> = {}): OrderLine => ({
   id: 'l', productId: 'p', variantId: '', name: 'Item', variantName: '', sku: '', qty: 1, unitPrice: 500, unitCost: 0,
@@ -113,6 +113,48 @@ describe('deposits', () => {
     const text = receiptText(o, shop());
     expect(text).toMatch(/Cash \(deposit\)\s+\$5\.00/);
     expect(text).toMatch(/Card\s+\$7\.00/);
+  });
+});
+
+describe('deposit slip', () => {
+  const cartLine = (over: Partial<CartLine> = {}): CartLine => ({
+    id: 'c1', productId: 'p', variantId: '', name: 'Birthday cake', variantName: '', sku: '', unitPrice: 12000, unitCost: 0, taxable: false,
+    qty: 1, discount: null, note: '', ...over,
+  });
+  const pending = (over: Partial<CartState> = {}) => ({
+    createdAt: AT + 5000,
+    cart: { lines: [cartLine()], discount: null, customerId: 'c', note: 'Pick-up Sat 10am', paid: [{ method: 'cash' as const, amount: 5000, tendered: 5000, deposit: true, at: AT }], ...over } as CartState,
+  });
+
+  it('is the order with its deposits and what is still owed, dated when the money was taken', () => {
+    const o = depositSlip(pending(), shop({ taxRate: 0 }), { customerName: 'Mei', userName: 'Amy' });
+    expect(o.total).toBe(12000);
+    expect(o.pending).toEqual({ balance: 7000 });
+    expect(o.at).toBe(AT); // the deposit's time, not when it was set aside
+    expect(o.payments).toHaveLength(1);
+    expect(o.customerName).toBe('Mei');
+  });
+
+  it('never shows a negative balance when the deposit exceeds a reduced total', () => {
+    const o = depositSlip(pending({ lines: [cartLine({ unitPrice: 3000 })] }), shop({ taxRate: 0 }), { customerName: '', userName: '' });
+    expect(o.pending!.balance).toBe(0);
+  });
+
+  it('prints as a deposit receipt with the balance, not as a sale', () => {
+    const text = receiptText(depositSlip(pending(), shop({ taxRate: 0 }), { customerName: 'Mei', userName: 'Amy' }), shop({ taxRate: 0 }));
+    expect(text).toContain('Deposit receipt');
+    expect(text).not.toContain('Receipt #');
+    expect(text).toContain('Order: Pick-up Sat 10am');
+    expect(text).toMatch(/Cash \(deposit\)\s+\$50\.00/);
+    expect(text).toMatch(/Paid so far\s+\$50\.00/);
+    expect(text).toMatch(/Balance due\s+\$70\.00/);
+    expect(text).toContain('Not a final receipt');
+  });
+
+  it('an ordinary receipt is unchanged', () => {
+    const text = receiptText(order({ lines: [line()], subtotal: 500, total: 500, payments: [{ method: 'cash', amount: 500, tendered: 500 }] }), shop());
+    expect(text).not.toContain('Deposit');
+    expect(text).not.toContain('Balance due');
   });
 });
 

@@ -893,5 +893,9 @@ const dict: Record<string, string> = {
   "Pay {amount}": "Pagar {amount}",
   "Delete pending order": "Eliminar pedido pendiente",
   "Delete pending order?": "¿Eliminar el pedido pendiente?",
+  "Deposit receipt": "Recibo de anticipo",
+  "Deposit received": "Anticipo recibido",
+  "Order: {name}": "Pedido: {name}",
+  "Not a final receipt. A full receipt is issued when the balance is paid.": "No es un recibo final. Se emite un recibo completo cuando se paga el saldo.",
 };
 export default dict;

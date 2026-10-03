@@ -314,7 +314,7 @@ describe('pending orders', () => {
     await openShift(10000);
     addToCart(cake);
     const rec = await parkCart({ payments: [{ method: 'cash', amount: 5000, tendered: 8000 }] });
-    expect(rec!.cart.paid).toEqual([{ method: 'cash', amount: 5000, tendered: 5000, deposit: true }]); // no change on a deposit
+    expect(rec!.cart.paid).toEqual([{ method: 'cash', amount: 5000, tendered: 5000, deposit: true, at: expect.any(Number) }]); // no change on a deposit
     let sum = await shiftSummary(shift.value!);
     expect(sum.cashIn).toBe(5000);
     expect(sum.expectedCash).toBe(15000);

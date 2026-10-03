@@ -893,5 +893,9 @@ const dict: Record<string, string> = {
   "Pay {amount}": "{amount} を支払う",
   "Delete pending order": "保留中の注文を削除",
   "Delete pending order?": "保留中の注文を削除しますか？",
+  "Deposit receipt": "内金の領収書",
+  "Deposit received": "内金を受け取りました",
+  "Order: {name}": "注文：{name}",
+  "Not a final receipt. A full receipt is issued when the balance is paid.": "これは最終のレシートではありません。残金のお支払い後に正式なレシートを発行します。",
 };
 export default dict;

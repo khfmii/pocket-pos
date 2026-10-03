@@ -5,6 +5,7 @@ import { receiptPdf, receiptPng } from '../lib/receiptImage';
 import { canPrint, isNative, shareFile, shareText } from '../lib/platform';
 import { canBluetoothPrint, hasPrinter, printer } from '../lib/printer';
 import { money, receiptNamer, settings, showToast } from '../lib/store';
+import { depositSum } from '../lib/cart';
 import type { Order, Settings } from '../lib/types';
 import { Icon, Sheet } from '../ui/components';
 import { PrinterPickerSheet, printOrderReceipt } from './Printer';
@@ -54,7 +55,8 @@ export function ReceiptPreviewSheet({ draft, onClose }: { draft: Settings; onClo
   );
 }
 
-const fileName = (order: Order, ext: string) => `receipt-${order.number.replace(/[^\w-]+/g, '') || 'sale'}.${ext}`;
+const fileName = (order: Order, ext: string) => (order.pending ? `deposit-receipt.${ext}` : `receipt-${order.number.replace(/[^\w-]+/g, '') || 'sale'}.${ext}`);
+const shareTitle = (order: Order) => (order.pending ? t('Deposit receipt') : t('Receipt {number}', { number: order.number }));
 
 type Kind = 'png' | 'pdf' | 'text';
 
@@ -64,7 +66,7 @@ function ShareSheet({ order, onClose }: { order: Order; onClose: () => void }) {
   async function go(kind: Kind) {
     setBusy(kind);
     const s = settings.value;
-    const title = t('Receipt {number}', { number: order.number });
+    const title = shareTitle(order);
     try {
       if (kind === 'text') {
         if (!(await shareText(title, receiptText(order, s)))) showToast(t('Receipt copied to clipboard'));
@@ -175,6 +177,41 @@ export function SaleComplete({ order, onClose }: { order: Order; onClose: () => 
       </div>
       <div class="stack" style="margin-top:0.875rem">
         <ProofSection orderId={order.id} />
+        <ReceiptActions order={order} />
+        <ReceiptView order={order} />
+      </div>
+    </Sheet>
+  );
+}
+
+/** The slip for a deposit: shown right after taking one, and reopened later from the pending list. */
+export function DepositSlip({ order, name, fresh, onClose }: { order: Order; name: string; fresh?: boolean; onClose: () => void }) {
+  return (
+    <Sheet
+      title={fresh ? t('Deposit received') : t('Deposit receipt')}
+      onClose={onClose}
+      footer={
+        <button class="btn primary lg" onClick={onClose}>
+          {t('Done')}
+        </button>
+      }
+    >
+      <div class="center">
+        {fresh && (
+          <div class="success-mark">
+            <Icon name="check" size="lg" />
+          </div>
+        )}
+        <div class="muted small">{name} · {t('Paid so far')}</div>
+        <div class="money" style="font-size:2.125rem;font-weight:800">
+          {money(depositSum(order.payments))}
+        </div>
+        <div class="banner" style="justify-content:space-between;margin:0.75rem 0">
+          <span>{t('Balance due')}</span>
+          <strong class="money" style="font-size:1.25rem">{money(order.pending?.balance ?? 0)}</strong>
+        </div>
+      </div>
+      <div class="stack" style="margin-top:0.5rem">
         <ReceiptActions order={order} />
         <ReceiptView order={order} />
       </div>

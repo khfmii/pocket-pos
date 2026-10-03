@@ -893,5 +893,9 @@ const dict: Record<string, string> = {
   "Pay {amount}": "ชำระ {amount}",
   "Delete pending order": "ลบออเดอร์ค้างชำระ",
   "Delete pending order?": "ลบออเดอร์ค้างชำระหรือไม่?",
+  "Deposit receipt": "ใบรับเงินมัดจำ",
+  "Deposit received": "รับเงินมัดจำแล้ว",
+  "Order: {name}": "ออเดอร์: {name}",
+  "Not a final receipt. A full receipt is issued when the balance is paid.": "นี่ไม่ใช่ใบเสร็จฉบับสมบูรณ์ จะออกใบเสร็จฉบับเต็มเมื่อชำระยอดคงเหลือครบ",
 };
 export default dict;

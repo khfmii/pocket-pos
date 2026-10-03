@@ -893,5 +893,9 @@ const dict: Record<string, string> = {
   "Pay {amount}": "{amount} 결제",
   "Delete pending order": "보류 주문 삭제",
   "Delete pending order?": "보류 주문을 삭제할까요?",
+  "Deposit receipt": "예약금 영수증",
+  "Deposit received": "예약금을 받았어요",
+  "Order: {name}": "주문: {name}",
+  "Not a final receipt. A full receipt is issued when the balance is paid.": "최종 영수증이 아닙니다. 잔금을 결제하면 전체 영수증이 발행돼요.",
 };
 export default dict;

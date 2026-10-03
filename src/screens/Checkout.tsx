@@ -4,7 +4,7 @@ import { depositSum } from '../lib/cart';
 import { quickCash } from '../lib/money';
 import { payLabel, payLine } from '../lib/receipt';
 import { cart, checkout, customers, money, parkCart, settings, showToast, totals } from '../lib/store';
-import type { Order, PayMethod, Payment } from '../lib/types';
+import type { Order, Parked, PayMethod, Payment } from '../lib/types';
 import { Icon, MoneyInput, Sheet } from '../ui/components';
 import { ProofPicker } from './Proofs';
 
@@ -16,7 +16,8 @@ const METHODS: { id: Method; icon: string }[] = [
   { id: 'other', icon: 'wallet' },
 ];
 
-export function CheckoutSheet({ onClose, onDone, onPending }: { onClose: () => void; onDone: (o: Order) => void; onPending: () => void }) {
+/** `onPending` gets the saved order when money was taken on it (so its deposit slip can be shown), else null. */
+export function CheckoutSheet({ onClose, onDone, onPending }: { onClose: () => void; onDone: (o: Order) => void; onPending: (p: Parked | null) => void }) {
   const tot = totals.value;
   const s = settings.value;
   const customer = customers.value.find((c) => c.id === cart.value.customerId);
@@ -51,9 +52,10 @@ export function CheckoutSheet({ onClose, onDone, onPending }: { onClose: () => v
   async function setAside() {
     setBusy(true);
     try {
-      await parkCart({ payments: typed ? [...payments, { method, amount: typed, tendered: typed }] : payments, proofs });
+      const taking = typed ? [...payments, { method, amount: typed, tendered: typed }] : payments;
+      const rec = await parkCart({ payments: taking, proofs });
       showToast(t('Order saved as pending — open it from the pause button'));
-      onPending();
+      onPending(taking.length ? rec : null);
     } catch (e) {
       showToast((e as Error).message, 'error');
       setBusy(false);

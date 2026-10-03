@@ -5,15 +5,15 @@ import { canPickContact, pickContact } from '../lib/contacts';
 import { nameMatches } from '../lib/names';
 import { formatTime } from '../lib/platform';
 import {
-  addToCart, blankCustomer, cancelCart, cancelPending, cart, customers, enabledCategories, findByCode, inCart, lineName, money, parkCart,
+  addToCart, blankCustomer, cancelCart, cancelPending, cart, customers, depositSlipFor, enabledCategories, findByCode, inCart, lineName, money, parkCart,
   parkedList, patchLine, productName, products, recallParked, removeOne, saveCustomer, setCartCustomer, setCartNote, setLineTotal,
   setOrderDiscount, setQty, settings, shift, showToast, totals,
 } from '../lib/store';
-import type { Adjustment, CartLine, Order, Product } from '../lib/types';
+import type { Adjustment, CartLine, Order, Parked, Product } from '../lib/types';
 import { confirmDialog, Empty, Icon, MoneyInput, NumberInput, Segmented, Sheet, Stepper, TextInput } from '../ui/components';
 import { scanBarcode } from '../ui/scanner';
 import { CheckoutSheet } from './Checkout';
-import { SaleComplete } from './Receipt';
+import { DepositSlip, SaleComplete } from './Receipt';
 
 /** Hardware barcode scanners type like a very fast keyboard and finish with Enter. */
 function useWedgeScanner(onCode: (code: string) => void) {
@@ -49,6 +49,7 @@ export function Sell() {
   const [adjusting, setAdjusting] = useState<string | null>(null); // product whose lines are being edited from the grid
   const [paying, setPaying] = useState(false);
   const [done, setDone] = useState<Order | null>(null);
+  const [slip, setSlip] = useState<Parked | null>(null); // a deposit just taken: its slip is shown right away
 
   const list = useMemo(() => {
     const needle = q.trim().toLowerCase();
@@ -235,7 +236,10 @@ export function Sell() {
       {paying && (
         <CheckoutSheet
           onClose={() => setPaying(false)}
-          onPending={() => setPaying(false)}
+          onPending={(rec) => {
+            setPaying(false);
+            setSlip(rec);
+          }}
           onDone={(o) => {
             setPaying(false);
             setDone(o);
@@ -243,6 +247,7 @@ export function Sell() {
         />
       )}
       {done && <SaleComplete order={done} onClose={() => setDone(null)} />}
+      {slip && <DepositSlip fresh order={depositSlipFor(slip)} name={slip.name} onClose={() => setSlip(null)} />}
     </div>
   );
 }
@@ -553,6 +558,7 @@ function CustomerPicker({ onClose }: { onClose: () => void }) {
 /** Orders set aside — unpaid, or part-paid with a deposit — to be opened and finished later. */
 function PendingSheet({ onClose, onPay }: { onClose: () => void; onPay: () => void }) {
   const s = settings.value;
+  const [slipOf, setSlipOf] = useState<Parked | null>(null);
   const rows = parkedList.value.map((p) => {
     const total = computeCart(p.cart, { rate: s.taxRate, inclusive: s.taxInclusive }).total;
     const paid = depositSum(p.cart.paid);
@@ -589,6 +595,11 @@ function PendingSheet({ onClose, onPay }: { onClose: () => void; onPay: () => vo
                   <button class="btn sm primary" disabled={blocked} onClick={() => open(p.id, true)}>
                     {due > 0 ? t('Pay {amount}', { amount: money(due) }) : t('Complete sale')}
                   </button>
+                  {paid > 0 && (
+                    <button class="iconbtn" aria-label={t('Deposit receipt')} onClick={() => setSlipOf(p)}>
+                      <Icon name="receipt" size="sm" />
+                    </button>
+                  )}
                   <button
                     class="iconbtn"
                     aria-label={t('Delete pending order')}
@@ -606,6 +617,7 @@ function PendingSheet({ onClose, onPay }: { onClose: () => void; onPay: () => vo
           {blocked && <div class="banner"><div>{t('Open a shift (More → Shift) before charging.')}</div></div>}
         </div>
       )}
+      {slipOf && <DepositSlip order={depositSlipFor(slipOf)} name={slipOf.name} onClose={() => setSlipOf(null)} />}
     </Sheet>
   );
 }

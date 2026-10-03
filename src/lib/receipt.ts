@@ -1,7 +1,8 @@
 import { locale, t } from '../i18n';
 import { formatMoney } from './money';
 import type { ItemName } from './names';
-import type { Order, OrderLine, PayMethod, Payment, Settings } from './types';
+import { computeCart, depositSum, toOrderLines } from './cart';
+import type { CartState, Order, OrderLine, PayMethod, Payment, Settings } from './types';
 
 /** A payment as it reads on a receipt or list: a deposit taken before the sale was finished says so. */
 export const payLine = (p: Pick<Payment, 'method' | 'deposit'>): string => (p.deposit ? t('{method} (deposit)', { method: payLabel(p.method) }) : payLabel(p.method));
@@ -104,7 +105,8 @@ export function buildReceipt(o: Order, s: Settings, nameOf?: (l: OrderLine) => I
   for (const x of [s.address, s.phone && t('Tel {phone}', { phone: s.phone }), s.email, s.website, s.taxId && t('Tax ID {id}', { id: s.taxId }), s.receiptHeader])
     if (x) text(x, { center: true, size: 'sm' });
   b.push({ k: 'rule' });
-  text(t('Receipt {number}', { number: o.number }), { bold: true });
+  text(o.pending ? t('Deposit receipt') : t('Receipt {number}', { number: o.number }), { bold: true });
+  if (o.pending && o.note.trim()) text(t('Order: {name}', { name: o.note.trim() }), { size: 'sm' }); // a table number, say
   text(new Date(o.at).toLocaleString(locale.value), { size: 'sm' });
   if (o.userName) text(t('Served by {name}', { name: o.userName }), { size: 'sm' });
   if (o.customerName) text(t('Customer: {name}', { name: o.customerName }), { size: 'sm' });
@@ -126,6 +128,12 @@ export function buildReceipt(o: Order, s: Settings, nameOf?: (l: OrderLine) => I
   b.push({ k: 'rule' });
   for (const p of o.payments) row(payLine(p), m(p.method === 'cash' ? p.tendered : p.amount));
   if (o.change) row(t('Change'), m(o.change));
+  if (o.pending) {
+    row(t('Paid so far'), m(depositSum(o.payments)));
+    row(t('Balance due'), m(o.pending.balance), { bold: true, size: 'lg' });
+    b.push({ k: 'rule' });
+    text(t('Not a final receipt. A full receipt is issued when the balance is paid.'), { center: true, size: 'sm' });
+  }
   if (o.refunds.length) {
     b.push({ k: 'rule' });
     for (const r of o.refunds) row(`${t('Refund')} ${new Date(r.at).toLocaleDateString(locale.value)}`, `-${m(r.amount)}`);
@@ -182,5 +190,23 @@ export function sampleOrder(s: Settings): Order {
     })),
     subtotal, orderDiscount: 0, orderDiscountAdj: null, tax, total, taxName: s.taxName, taxRate: s.taxRate, taxInclusive: s.taxInclusive,
     payments: [{ method: 'cash', amount: total, tendered }], change: tendered - total, status: 'paid', refunds: [], note: '', pointsEarned: 0, pointsRedeemed: 0,
+  };
+}
+
+/**
+ * The made-up order a deposit slip is drawn from: a pending order's items and totals, its deposits as the payments, and
+ * what is still owed. It is never stored; it only lets the receipt renderers (screen, image, PDF, printer) draw the slip.
+ */
+export function depositSlip(p: { createdAt: number; cart: CartState }, s: Settings, who: { customerName: string; userName: string }): Order {
+  const tot = computeCart(p.cart, { rate: s.taxRate, inclusive: s.taxInclusive });
+  const payments = p.cart.paid ?? [];
+  const taken = Math.max(0, ...payments.map((x) => x.at ?? 0)) || p.createdAt; // when the latest deposit was received
+  return {
+    id: 'deposit-slip', updatedAt: 0, number: '', seq: 0, at: taken, shiftId: '', userId: '', userName: who.userName,
+    customerId: p.cart.customerId, customerName: who.customerName, lines: toOrderLines(p.cart.lines, tot),
+    subtotal: tot.subtotal, orderDiscount: tot.orderDiscount, orderDiscountAdj: p.cart.discount, tax: tot.tax, total: tot.total,
+    taxName: s.taxName, taxRate: s.taxRate, taxInclusive: s.taxInclusive, payments, change: 0, status: 'paid', refunds: [],
+    note: p.cart.note, pointsEarned: 0, pointsRedeemed: 0,
+    pending: { balance: Math.max(0, tot.total - depositSum(payments)) },
   };
 }

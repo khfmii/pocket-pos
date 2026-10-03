@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from 'preact/hooks';
 import { t, tn } from '../i18n';
 import { adjustmentAmount, computeCart, depositSum } from '../lib/cart';
+import { groupByCategory } from '../lib/categories';
 import { canPickContact, pickContact } from '../lib/contacts';
 import { nameMatches } from '../lib/names';
 import { formatTime } from '../lib/platform';
 import {
-  addToCart, blankCustomer, cancelCart, cancelPending, cart, customers, depositSlipFor, enabledCategories, findByCode, inCart, lineName, money, parkCart,
+  addToCart, blankCustomer, cancelCart, cancelPending, cart, categories, customers, depositSlipFor, enabledCategories, findByCode, inCart, lineName, money, parkCart,
   parkedList, patchLine, productName, products, recallParked, removeOne, saveCustomer, setCartCustomer, setCartNote, setLineTotal,
   setOrderDiscount, setQty, settings, shift, showToast, totals,
 } from '../lib/store';
@@ -96,6 +97,37 @@ export function Sell() {
     if (code) byCode(code);
   }
 
+  /** One item's tile: tap to add, and once it is in the order a − count + strip to take units off. */
+  const tile = (p: Product) => {
+    const n = inCart(p.id);
+    const out = p.trackStock && p.stock <= 0;
+    const low = p.trackStock && !out && p.stock <= p.lowStock;
+    const from = p.variants.length ? Math.min(p.price, ...p.variants.map((v) => v.price)) : p.price;
+    return (
+      <div key={p.id} class={`tile-cell ${n > 0 ? 'in' : ''}`}>
+        <button class="tile" onClick={() => tap(p)} style={p.color ? `border-top:0.25rem solid ${p.color}` : ''}>
+          {(out || low) && <span class={`pill stock ${out ? 'bad' : 'warn'}`}>{out ? t('Out') : t('{n} left', { n: p.stock })}</span>}
+          {p.image ? <img class="thumb" src={p.image} alt="" loading="lazy" /> : <span class="emoji">{p.emoji || '🛍️'}</span>}
+          <span class="name">{productName(p)}</span>
+          <span class="price money">{p.variants.length ? t('from {price}', { price: money(from) }) : money(from)}</span>
+        </button>
+        {n > 0 && (
+          <div class="tile-qty">
+            <button onClick={() => less(p)} aria-label={t('Remove one {name}', { name: productName(p) })}>
+              <Icon name="minus" size="sm" />
+            </button>
+            <button class="count" onClick={() => setAdjusting(p.id)} aria-label={t('Change quantity of {name}', { name: productName(p) })}>
+              {n}
+            </button>
+            <button onClick={() => tap(p)} aria-label={t('Add one {name}', { name: productName(p) })}>
+              <Icon name="plus" size="sm" />
+            </button>
+          </div>
+        )}
+      </div>
+    );
+  };
+
   const tot = totals.value;
   const lines = cart.value.lines;
 
@@ -151,37 +183,15 @@ export function Sell() {
               {t('Nothing matches “{q}”.', { q })}
             </Empty>
           ) : (
-            <div class="tiles">
-              {list.map((p) => {
-                const n = inCart(p.id);
-                const out = p.trackStock && p.stock <= 0;
-                const low = p.trackStock && !out && p.stock <= p.lowStock;
-                const from = p.variants.length ? Math.min(p.price, ...p.variants.map((v) => v.price)) : p.price;
-                return (
-                  <div key={p.id} class={`tile-cell ${n > 0 ? 'in' : ''}`}>
-                    <button class="tile" onClick={() => tap(p)} style={p.color ? `border-top:0.25rem solid ${p.color}` : ''}>
-                      {(out || low) && <span class={`pill stock ${out ? 'bad' : 'warn'}`}>{out ? t('Out') : t('{n} left', { n: p.stock })}</span>}
-                      {p.image ? <img class="thumb" src={p.image} alt="" loading="lazy" /> : <span class="emoji">{p.emoji || '🛍️'}</span>}
-                      <span class="name">{productName(p)}</span>
-                      <span class="price money">{p.variants.length ? t('from {price}', { price: money(from) }) : money(from)}</span>
-                    </button>
-                    {n > 0 && (
-                      <div class="tile-qty">
-                        <button onClick={() => less(p)} aria-label={t('Remove one {name}', { name: productName(p) })}>
-                          <Icon name="minus" size="sm" />
-                        </button>
-                        <button class="count" onClick={() => setAdjusting(p.id)} aria-label={t('Change quantity of {name}', { name: productName(p) })}>
-                          {n}
-                        </button>
-                        <button onClick={() => tap(p)} aria-label={t('Add one {name}', { name: productName(p) })}>
-                          <Icon name="plus" size="sm" />
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
+            groupByCategory(list, categories.value).map(({ category, items }) => (
+              <section key={category?.id ?? 'none'}>
+                <div class="cat-head">
+                  <span class="grow ellipsis">{category ? `${category.emoji} ${category.name}` : t('Uncategorised')}</span>
+                  <span class="count">{items.length}</span>
+                </div>
+                <div class="tiles">{items.map(tile)}</div>
+              </section>
+            ))
           )}
         </div>
         {lines.length > 0 && (
